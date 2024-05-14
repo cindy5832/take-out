@@ -76,14 +76,49 @@ public class DishServiceImpl implements DishService {
         }
         // 是否有套餐相關菜色
         List<Long> setmelIds = setmealDishMapper.getSetmelIdsByDishIds(ids);
-        if(setmelIds != null && setmelIds.size() > 0){
+        if (setmelIds != null && setmelIds.size() > 0) {
             throw new DeletionNotAllowedException(MessageConstant.DISH_BE_RELATED_BY_SETMEAL);
         }
-        // 刪除菜品數據
-        for(Long id : ids) {
-            dishMapper.deleteById(id);
-            // 刪除菜品關聯口味數據
-            dishFlavorMapper.deleteByDishId(id);
+//        // 刪除菜品數據
+//        for(Long id : ids) {
+//            dishMapper.deleteById(id);
+//            // 刪除菜品關聯口味數據
+//            dishFlavorMapper.deleteByDishId(id);
+//        }
+        dishMapper.deleteByIds(ids);
+        dishFlavorMapper.deleteByDishIds(ids);
+    }
+
+    @Override
+    // 根據id查詢菜品和相對應的口味數據
+    public DishVO getByIdWithFlavor(Long id) {
+        // 根據id查詢菜品數據
+        Dish dish = dishMapper.getById(id);
+        // 根據菜品id查詢口味數據
+        List<DishFlavor> dishFlavors = dishFlavorMapper.getByDishId(id);
+        // 將查詢到的數據封裝到VO
+        DishVO dishVO = new DishVO();
+        BeanUtils.copyProperties(dish, dishVO);
+        dishVO.setFlavors(dishFlavors);
+        return dishVO;
+    }
+
+    @Override
+    // 根據菜品修改基本訊息和對應的口味訊息
+    public void updateWithFlavor(DishDTO dishDTO) {
+        Dish dish = new Dish();
+        BeanUtils.copyProperties(dishDTO,dish);
+        // 修改菜品表基本訊息
+        dishMapper.update(dish);
+        // 刪除原有的口味數據
+        dishFlavorMapper.deleteByDishId(dishDTO.getId());
+        // 重新插入口味數據
+        List<DishFlavor> flavors = dishDTO.getFlavors();
+        if (flavors != null && flavors.size() > 0) {
+            flavors.forEach(dishFlavor -> {
+                dishFlavor.setDishId(dishDTO.getId());
+            });
+            dishFlavorMapper.insertBatch(flavors);
         }
     }
 }
