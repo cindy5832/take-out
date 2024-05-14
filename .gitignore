@@ -4,6 +4,3 @@
 *.class
 *Test.java
 **/test/
-# Ignore application-dev.yml file
-application-dev.yml
-application.yml
