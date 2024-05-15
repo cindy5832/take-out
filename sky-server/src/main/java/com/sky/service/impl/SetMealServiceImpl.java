@@ -6,15 +6,18 @@ import com.sky.constant.MessageConstant;
 import com.sky.constant.StatusConstant;
 import com.sky.dto.SetmealDTO;
 import com.sky.dto.SetmealPageQueryDTO;
+import com.sky.entity.Dish;
 import com.sky.entity.Setmeal;
 import com.sky.entity.SetmealDish;
 import com.sky.exception.DeletionNotAllowedException;
+import com.sky.exception.SetmealEnableFailedException;
 import com.sky.mapper.DishMapper;
 import com.sky.mapper.SetmealDishMapper;
 import com.sky.mapper.SetmealMapper;
 import com.sky.result.PageResult;
 import com.sky.service.SetMealService;
 import com.sky.vo.SetmealVO;
+import org.apache.ibatis.annotations.Select;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -46,7 +49,7 @@ public class SetMealServiceImpl implements SetMealService {
 
         // 獲取生成的套餐id
         List<SetmealDish> setMealDishes = setmealDTO.getSetmealDishes();
-        setMealDishes.forEach(dish ->{
+        setMealDishes.forEach(dish -> {
             dish.setSetmealId(setMealId);
         });
 
@@ -65,9 +68,9 @@ public class SetMealServiceImpl implements SetMealService {
     @Override
     @Transactional
     public void deleteBatch(List<Long> ids) {
-        ids.forEach(id ->{
+        ids.forEach(id -> {
             Setmeal setmeal = setmealMapper.getById(id);
-            if(StatusConstant.ENABLE == setmeal.getStatus()){
+            if (StatusConstant.ENABLE == setmeal.getStatus()) {
                 throw new DeletionNotAllowedException(MessageConstant.SETMEAL_ON_SALE);
             }
         });
@@ -102,9 +105,25 @@ public class SetMealServiceImpl implements SetMealService {
         setmealDishMapper.deleteBySetMealId(setMeadId);
 
         List<SetmealDish> setmealDishes = setmealDTO.getSetmealDishes();
-        setmealDishes.forEach(setmealDish ->{
+        setmealDishes.forEach(setmealDish -> {
             setmealDish.setSetmealId(setMeadId);
         });
         setmealDishMapper.insertBatch(setmealDishes);
+    }
+
+    @Override
+    public void startOrStop(Integer status, Long id) {
+        if (status == StatusConstant.ENABLE) {
+            List<Dish> dishes = dishMapper.getBySetMealId(id);
+            if (dishes != null && dishes.size() > 0) {
+                dishes.forEach(dish -> {
+                    if (StatusConstant.DISABLE == dish.getStatus()) {
+                        throw new SetmealEnableFailedException(MessageConstant.SETMEAL_ENABLE_FAILED);
+                    }
+                });
+            }
+        }
+        Setmeal setmeal = Setmeal.builder().id(id).status(status).build();
+        setmealMapper.update(setmeal);
     }
 }

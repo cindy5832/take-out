@@ -60,4 +60,12 @@ public class SetMealController {
         setMealService.update(setmealDTO);
         return Result.success();
     }
+
+    @PostMapping("/status/{status}")
+    @ApiOperation("修改套餐起售停售")
+    public Result startOrStop(@PathVariable Integer status, Long id){
+        log.info("修改套餐：{} , 販售狀態：{}", id , status);
+        setMealService.startOrStop(status, id);
+        return Result.success();
+    }
 }
