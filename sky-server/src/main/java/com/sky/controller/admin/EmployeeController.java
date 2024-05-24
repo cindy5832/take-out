@@ -78,20 +78,20 @@ public class EmployeeController {
 
     @PostMapping("/")
     @ApiOperation("新增員工")
-    public Result save(@RequestBody EmployeeDTO employeeDTO){
+    public Result save(@RequestBody EmployeeDTO employeeDTO) {
         log.info("新增員工:{}", employeeDTO);
         employeeService.save(employeeDTO);
         return Result.success();
     }
 
     /**
+     * @return com.sky.result.Result<com.sky.result.PageResult>
      * @description: 員工分頁查詢
      * @param: [employeePageQueryDTO]
-     * @return com.sky.result.Result<com.sky.result.PageResult>
      **/
     @GetMapping("/page")
     @ApiOperation("員工分業查詢")
-    public Result<PageResult> page(EmployeePageQueryDTO employeePageQueryDTO){
+    public Result<PageResult> page(EmployeePageQueryDTO employeePageQueryDTO) {
         log.info("員工分頁查詢，參數為: {}", employeePageQueryDTO);
         PageResult pageResult = employeeService.pageQuery(employeePageQueryDTO);
         return Result.success(pageResult);
@@ -99,7 +99,7 @@ public class EmployeeController {
 
     @PostMapping("/status/{status}")
     @ApiOperation("啟用進用帳號")
-    public Result startOrStop(@PathVariable Integer status, Long id){
+    public Result startOrStop(@PathVariable Integer status, Long id) {
         log.info("啟用禁用員工帳號：{}, {}", status, id);
         employeeService.startOrStop(status, id);
         return Result.success();
@@ -107,14 +107,14 @@ public class EmployeeController {
 
     @GetMapping("/{id}")
     @ApiOperation("根據id查詢員工訊息")
-    public Result<Employee> getById(@PathVariable Long id){
+    public Result<Employee> getById(@PathVariable Long id) {
         Employee employee = employeeService.getById(id);
         return Result.success(employee);
     }
 
     @PutMapping()
     @ApiOperation("編輯員工訊息")
-    public Result update(@RequestBody EmployeeDTO employeeDTO){
+    public Result update(@RequestBody EmployeeDTO employeeDTO) {
         log.info("編輯員工訊息：{}", employeeDTO);
         employeeService.update(employeeDTO);
         return Result.success();
