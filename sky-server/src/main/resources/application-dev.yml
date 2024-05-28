@@ -17,3 +17,6 @@ sky:
 #    password: 123456
     database: 0
     # database默認為1
+  wechat:
+    appid: jfowijfpqjrp
+    secret: jiojg;wjgpwjaeartq

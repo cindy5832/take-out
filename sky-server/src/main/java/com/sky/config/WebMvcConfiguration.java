@@ -1,6 +1,7 @@
 package com.sky.config;
 
 import com.sky.interceptor.JwtTokenAdminInterceptor;
+import com.sky.interceptor.JwtTokenUserInterceptor;
 import com.sky.json.JacksonObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,7 +22,7 @@ import springfox.documentation.spring.web.plugins.Docket;
 import java.util.List;
 
 /**
- * 配置类，注册web层相关组件
+ * 配置類，註冊web層相關組件
  */
 @Configuration
 @Slf4j
@@ -30,29 +31,36 @@ public class WebMvcConfiguration extends WebMvcConfigurationSupport {
     @Autowired
     private JwtTokenAdminInterceptor jwtTokenAdminInterceptor;
 
+    @Autowired
+    private JwtTokenUserInterceptor jwtTokenUserInterceptor;
+
     /**
-     * 注册自定义拦截器
+     * 註冊自訂攔截器
      *
      * @param registry
      */
     protected void addInterceptors(InterceptorRegistry registry) {
-        log.info("开始注册自定义拦截器...");
+        log.info("開始註冊自訂攔截器...");
         registry.addInterceptor(jwtTokenAdminInterceptor)
                 .addPathPatterns("/admin/**")
                 .excludePathPatterns("/admin/employee/login");
+        registry.addInterceptor(jwtTokenUserInterceptor)
+                .addPathPatterns("/user/**")
+                .excludePathPatterns("/user/user/login")
+                .excludePathPatterns("/user/shop/status");
     }
 
     /**
-     * 通过knife4j生成接口文档
+     * 透過knife4j產生介面文檔
      *
      * @return
      */
     @Bean
     public Docket docket() {
         ApiInfo apiInfo = new ApiInfoBuilder()
-                .title("苍穹外卖项目接口文档")
+                .title("蒼穹外送專案介面文檔")
                 .version("2.0")
-                .description("苍穹外卖项目接口文档")
+                .description("蒼穹外送專案介面文檔")
                 .build();
         Docket docket = new Docket(DocumentationType.SWAGGER_2)
                 .groupName("管理端")
@@ -67,9 +75,9 @@ public class WebMvcConfiguration extends WebMvcConfigurationSupport {
     @Bean
     public Docket docket1() {
         ApiInfo apiInfo = new ApiInfoBuilder()
-                .title("苍穹外卖项目接口文档")
+                .title("蒼穹外送專案介面文檔")
                 .version("2.0")
-                .description("苍穹外卖项目接口文档")
+                .description("蒼穹外送專案介面文檔")
                 .build();
         Docket docket = new Docket(DocumentationType.SWAGGER_2)
                 .groupName("用戶端")
@@ -82,7 +90,7 @@ public class WebMvcConfiguration extends WebMvcConfigurationSupport {
     }
 
     /**
-     * 设置静态资源映射
+     * 設定靜態資源映射
      *
      * @param registry
      */

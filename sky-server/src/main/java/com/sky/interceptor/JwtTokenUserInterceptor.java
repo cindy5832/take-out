@@ -13,14 +13,13 @@ import org.springframework.web.servlet.HandlerInterceptor;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.util.Base64;
 
 /**
  * jwt令牌校验的拦截器
  */
 @Component
 @Slf4j
-public class JwtTokenAdminInterceptor implements HandlerInterceptor {
+public class JwtTokenUserInterceptor implements HandlerInterceptor {
 
     @Autowired
     private JwtProperties jwtProperties;
@@ -42,15 +41,15 @@ public class JwtTokenAdminInterceptor implements HandlerInterceptor {
         }
 
         //1、從請求頭中獲取令牌
-        String token = request.getHeader(jwtProperties.getAdminTokenName());
+        String token = request.getHeader(jwtProperties.getUserTokenName());
 
         //2、校驗令牌
         try {
             log.info("jwt校驗:{}", token);
-            Claims claims = JwtUtil.parseJWT(jwtProperties.getAdminSecretKey(), token);
-            Long empId = Long.valueOf(claims.get(JwtClaimsConstant.EMP_ID).toString());
-            log.info("當前員工id：{}", empId);
-            BaseContext.setCurrentId(empId);
+            Claims claims = JwtUtil.parseJWT(jwtProperties.getUserSecretKey(), token);
+            Long userId = Long.valueOf(claims.get(JwtClaimsConstant.USER_ID).toString());
+            log.info("當前用戶id：{}", userId);
+            BaseContext.setCurrentId(userId);
             //3、通過，放行
             return true;
         } catch (Exception ex) {
