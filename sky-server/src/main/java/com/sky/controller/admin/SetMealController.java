@@ -10,6 +10,7 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,7 +25,8 @@ public class SetMealController {
 
     @PostMapping
     @ApiOperation("新增套餐")
-    public Result save(@RequestBody SetmealDTO setmealDTO){
+    @CacheEvict(cacheNames = "setMealCache", key = "#setmealDTO.categoryId")
+    public Result save(@RequestBody SetmealDTO setmealDTO) {
         log.info("新增菜品：{}", setmealDTO);
         setMealService.saveWithDish(setmealDTO);
         return Result.success();
@@ -32,7 +34,7 @@ public class SetMealController {
 
     @GetMapping("/page")
     @ApiOperation("分頁查詢套餐")
-    public Result<PageResult> page (SetmealPageQueryDTO setmealPageQueryDTO){
+    public Result<PageResult> page(SetmealPageQueryDTO setmealPageQueryDTO) {
         log.info("分頁查詢套餐：{}", setmealPageQueryDTO);
         PageResult pageResult = setMealService.pageQuery(setmealPageQueryDTO);
         return Result.success(pageResult);
@@ -40,7 +42,8 @@ public class SetMealController {
 
     @DeleteMapping
     @ApiOperation("批量刪除套餐")
-    public Result delete(@RequestParam List<Long> ids){
+    @CacheEvict(cacheNames = "setMealCache", allEntries = true)
+    public Result delete(@RequestParam List<Long> ids) {
         log.info("批量刪除套餐：{}", ids);
         setMealService.deleteBatch(ids);
         return Result.success();
@@ -48,7 +51,7 @@ public class SetMealController {
 
     @GetMapping("/{id}")
     @ApiOperation("根據id查詢套餐")
-    public Result<SetmealVO> getById(@PathVariable Long id){
+    public Result<SetmealVO> getById(@PathVariable Long id) {
         log.info("根據id查詢套餐：{}", id);
         SetmealVO setmealVO = setMealService.getByIdWithDish(id);
         return Result.success(setmealVO);
@@ -56,15 +59,17 @@ public class SetMealController {
 
     @PutMapping
     @ApiOperation("修改套餐")
-    public Result update(@RequestBody SetmealDTO setmealDTO){
+    @CacheEvict(cacheNames = "setMealCache", allEntries = true)
+    public Result update(@RequestBody SetmealDTO setmealDTO) {
         setMealService.update(setmealDTO);
         return Result.success();
     }
 
     @PostMapping("/status/{status}")
     @ApiOperation("修改套餐起售停售")
-    public Result startOrStop(@PathVariable Integer status, Long id){
-        log.info("修改套餐：{} , 販售狀態：{}", id , status);
+    @CacheEvict(cacheNames = "setMealCache", allEntries = true)
+    public Result startOrStop(@PathVariable Integer status, Long id) {
+        log.info("修改套餐：{} , 販售狀態：{}", id, status);
         setMealService.startOrStop(status, id);
         return Result.success();
     }
