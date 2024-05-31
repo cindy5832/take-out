@@ -28,6 +28,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class OrderServiceImpl implements OrderService {
@@ -217,5 +218,25 @@ public class OrderServiceImpl implements OrderService {
         order.setCancelReason("用戶取消");
         order.setCancelTime(LocalDateTime.now());
         orderMapper.update(order);
+    }
+
+    @Override
+    public void repetition(Long id) {
+        Long userId = BaseContext.getCurrentId();
+        List<OrderDetail> orderDetailList = orderDetailMapper.getByOrderId(userId);
+
+        // 將訂單詳情對象轉換為購物車對象
+        List<ShoppingCart> shoppingCartList = orderDetailList.stream().map(x->{
+            ShoppingCart shoppingCart = new ShoppingCart();
+
+            // 將原訂單詳情裡面的菜色資訊重新複製到購物車物件中
+            BeanUtils.copyProperties(x, shoppingCart, "id");
+            shoppingCart.setUserId(userId);
+            shoppingCart.setCreateTime(LocalDateTime.now());
+            return shoppingCart;
+        }).collect(Collectors.toList());
+
+        // 將購物車物件批次加入資料庫
+        shoppingCartMapper.insertBatch(shoppingCartList);
     }
 }
