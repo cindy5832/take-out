@@ -1,17 +1,18 @@
 package com.sky.controller.admin;
 
+import com.sky.dto.OrdersConfirmDTO;
 import com.sky.dto.OrdersPageQueryDTO;
+import com.sky.dto.OrdersRejectionDTO;
 import com.sky.result.PageResult;
 import com.sky.result.Result;
 import com.sky.service.OrderService;
 import com.sky.vo.OrderStatisticsVO;
+import com.sky.vo.OrderVO;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController("adminOrderController")
 @RequestMapping("/admin/order")
@@ -35,5 +36,29 @@ public class OrderController {
         log.info("查詢各狀態訂單統計數量");
         OrderStatisticsVO orderStatisticsVO = orderService.statistics();
         return Result.success(orderStatisticsVO);
+    }
+
+    @GetMapping("/details/{id}")
+    @ApiOperation("查詢訂單詳情")
+    public Result<OrderVO> details(@PathVariable("id") Long id){
+        log.info("查詢id：{} 訂單詳情", id);
+        OrderVO orderVO = orderService.details(id);
+        return Result.success(orderVO);
+    }
+
+    @PutMapping("/confirm")
+    @ApiOperation("接受訂單")
+    public Result confirm(@RequestBody OrdersConfirmDTO ordersConfirmDTO){
+        log.info("接受訂單：{}", ordersConfirmDTO);
+        orderService.confirm(ordersConfirmDTO);
+        return Result.success();
+    }
+
+    @PutMapping("/rejection")
+    @ApiOperation("拒絕訂單")
+    public Result rejection(@RequestBody OrdersRejectionDTO ordersRejectionDTO) throws Exception {
+        log.info("拒絕訂單：{}", ordersRejectionDTO);
+        orderService.rejection(ordersRejectionDTO);
+        return Result.success();
     }
 }
