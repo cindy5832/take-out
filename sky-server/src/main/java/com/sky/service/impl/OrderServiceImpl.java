@@ -1,5 +1,7 @@
 package com.sky.service.impl;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
@@ -13,6 +15,7 @@ import com.sky.exception.ShoppingCartBusinessException;
 import com.sky.mapper.*;
 import com.sky.result.PageResult;
 import com.sky.service.OrderService;
+import com.sky.utils.HttpClientUtil;
 import com.sky.utils.WeChatPayUtil;
 import com.sky.vo.OrderPaymentVO;
 import com.sky.vo.OrderStatisticsVO;
@@ -21,6 +24,7 @@ import com.sky.vo.OrderVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -28,12 +32,24 @@ import org.springframework.util.CollectionUtils;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 public class OrderServiceImpl implements OrderService {
+
+    @Value("${sky.shop.address}")
+    private String shopAddress;
+
+    @Value("${sky.baidu.ak}")
+    private String ak;
+
+    private final String mapUrl = "https://api.map.baidu.com/geocoding/v3";
+
+    private final String directionPlanUrl = "https://api.map.baidu.com/directionlite/v1/driving";
 
     @Autowired
     private OrderMapper orderMapper;
@@ -62,6 +78,9 @@ public class OrderServiceImpl implements OrderService {
         if (addressBook == null) {
             throw new AddressBookBusinessException(MessageConstant.ADDRESS_BOOK_IS_NULL);
         }
+        String address = addressBook.getCityName() + addressBook.getDistrictName() + addressBook.getDetail();
+        checkOutOfRange(address);
+
         // 查詢當前購物車數據
         Long userId = BaseContext.getCurrentId();
 
@@ -105,6 +124,58 @@ public class OrderServiceImpl implements OrderService {
                 .orderNumber(orders.getNumber())
                 .build();
         return orderSubmitVO;
+    }
+
+    private void checkOutOfRange(String address) {
+        Map map = new HashMap();
+        map.put("address", shopAddress);
+        map.put("output", "json");
+        map.put("ak", ak);
+        // 取得店舖的經緯度座標
+        String shopCoordinate = HttpClientUtil.doGet(mapUrl, map);
+        JSONObject object = JSON.parseObject(shopCoordinate);
+        if (!object.getString("status").equals("0")) {
+            throw new OrderBusinessException("商店地址解析失敗");
+        }
+        // 數據解析
+        JSONObject location = object.getJSONObject("result").getJSONObject("location");
+        String lat = location.getString("lat");
+        String lng = location.getString("lng");
+
+        String shopLngLat = lat + "," + lng;
+        log.info("商店地址：{}，解析座標為：{}", location, shopLngLat);
+
+        map.put("address", address);
+        String userCoordinate = HttpClientUtil.doGet(mapUrl, map);
+        object = JSON.parseObject(userCoordinate);
+        if (!object.getString("status").equals("0")) {
+            throw new OrderBusinessException("收貨地址解析失敗");
+        }
+
+        location = object.getJSONObject("result").getJSONObject("location");
+        lat = location.getString("lat");
+        lng = location.getString("lng");
+
+        String userLatLng = lat + "," + lng;
+        log.info("收貨地址：{}，解析座標為：{}", location, userLatLng);
+
+        map.put("origin", shopLngLat);
+        map.put("destination", userLatLng);
+        map.put("steps_info", "0");
+
+        String json = HttpClientUtil.doGet(directionPlanUrl, map);
+        object = JSON.parseObject(json);
+        if (!object.getString("status").equals("0")) {
+            throw new OrderBusinessException("配送路線規畫失敗");
+        }
+        JSONObject result = object.getJSONObject("result");
+        JSONArray jsonArray = (JSONArray) result.get("route");
+        Integer distance = (Integer) ((JSONObject) jsonArray.get(0)).get("distance");
+
+        if (distance > 5000) {
+            // 超出5000 m
+            throw new OrderBusinessException("超出配送範圍");
+        }
     }
 
     @Override
