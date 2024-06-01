@@ -17,12 +17,14 @@ import com.sky.result.PageResult;
 import com.sky.service.OrderService;
 import com.sky.utils.WeChatPayUtil;
 import com.sky.vo.OrderPaymentVO;
+import com.sky.vo.OrderStatisticsVO;
 import com.sky.vo.OrderSubmitVO;
 import com.sky.vo.OrderVO;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -188,22 +190,22 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public void userCancelById(Long id) throws Exception{
+    public void userCancelById(Long id) throws Exception {
         // 根據Id查詢訂單
         Orders orders = orderMapper.getById(id);
         // 確認訂單是否存在
-        if(orders == null){
+        if (orders == null) {
             throw new OrderBusinessException(MessageConstant.ORDER_NOT_FOUND);
         }
         // 訂單狀態 1待付款 2待接單 3已接單 4派送中 5已完成 6已取消
-        if(orders.getStatus() > 2){
+        if (orders.getStatus() > 2) {
             throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
         }
         Orders order = new Orders();
         order.setId(orders.getId());
 
         // 訂單處於待接單狀態取消，需退款
-        if(orders.getStatus().equals(Orders.TO_BE_CONFIRMED)){
+        if (orders.getStatus().equals(Orders.TO_BE_CONFIRMED)) {
             // 呼叫微信支付退款接口
             weChatPayUtil.refund(
                     orders.getNumber(), // 商戶訂單號
@@ -226,7 +228,7 @@ public class OrderServiceImpl implements OrderService {
         List<OrderDetail> orderDetailList = orderDetailMapper.getByOrderId(userId);
 
         // 將訂單詳情對象轉換為購物車對象
-        List<ShoppingCart> shoppingCartList = orderDetailList.stream().map(x->{
+        List<ShoppingCart> shoppingCartList = orderDetailList.stream().map(x -> {
             ShoppingCart shoppingCart = new ShoppingCart();
 
             // 將原訂單詳情裡面的菜色資訊重新複製到購物車物件中
@@ -238,5 +240,57 @@ public class OrderServiceImpl implements OrderService {
 
         // 將購物車物件批次加入資料庫
         shoppingCartMapper.insertBatch(shoppingCartList);
+    }
+
+    @Override
+    public PageResult conditionSearch(OrdersPageQueryDTO ordersPageQueryDTO) {
+        PageHelper.startPage(ordersPageQueryDTO.getPage(), ordersPageQueryDTO.getPageSize());
+
+        Page<Orders> page = orderMapper.pageQuery(ordersPageQueryDTO);
+        List<OrderVO> orderVOS = getOrderVOList(page);
+        return new PageResult(page.getTotal(), orderVOS);
+    }
+
+    @Override
+    public OrderStatisticsVO statistics() {
+        // 根據狀態，分別查詢出待接單、待派送、派送中的訂單數量
+        Integer toBeConfirmed = orderMapper.countStatus(Orders.TO_BE_CONFIRMED);
+        Integer confirmed = orderMapper.countStatus(Orders.CONFIRMED);
+        Integer deliveryInProgress = orderMapper.countStatus(Orders.DELIVERY_IN_PROGRESS);
+
+        // 將查詢出的資料封裝到orderStatisticsVO中回應
+        OrderStatisticsVO orderStatisticsVO = new OrderStatisticsVO();
+        orderStatisticsVO.setConfirmed(confirmed);
+        orderStatisticsVO.setToBeConfirmed(toBeConfirmed);
+        orderStatisticsVO.setDeliveryInProgress(deliveryInProgress);
+
+        return orderStatisticsVO;
+    }
+
+    private List<OrderVO> getOrderVOList(Page<Orders> page) {
+        List<OrderVO> orderVOList = new ArrayList<>();
+        List<Orders> ordersList = page.getResult();
+        if (!CollectionUtils.isEmpty(ordersList)) {
+            for (Orders orders : ordersList) {
+                OrderVO orderVO = new OrderVO();
+                BeanUtils.copyProperties(orders, orderVO);
+                String orderDishes = getOrderDishesStr(orders);
+
+                orderVO.setOrderDishes(orderDishes);
+                ordersList.add(orderVO);
+            }
+        }
+        return orderVOList;
+    }
+
+    private String getOrderDishesStr(Orders orders) {
+        List<OrderDetail> orderDetailList = orderDetailMapper.getByOrderId(orders.getId());
+        // 將每個訂單菜餚資訊拼接為字串（格式：宮保雞丁*3；）
+        List<String> orderDishList = orderDetailList.stream().map(x -> {
+            String orderDish = x.getName() + "*" + x.getNumber() + ";";
+            return orderDish;
+        }).collect(Collectors.toList());
+        // 將該訂單對應的所有菜餚資訊拼接在一起
+        return String.join("", orderDishList);
     }
 }
