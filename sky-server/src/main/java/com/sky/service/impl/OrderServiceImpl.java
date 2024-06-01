@@ -277,16 +277,16 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public void rejection(OrdersRejectionDTO ordersRejectionDTO) throws Exception{
+    public void rejection(OrdersRejectionDTO ordersRejectionDTO) throws Exception {
         // 根據id查詢訂單
         Orders orders = orderMapper.getById(ordersRejectionDTO.getId());
         // 訂單只有存在且狀態為2（待接單）才可以拒單
-        if(orders == null || !orders.getStatus().equals(Orders.TO_BE_CONFIRMED)){
+        if (orders == null || !orders.getStatus().equals(Orders.TO_BE_CONFIRMED)) {
             throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
         }
         // 支付狀態
         Integer payStatus = orders.getPayStatus();
-        if(payStatus == Orders.PAID){
+        if (payStatus == Orders.PAID) {
             String refund = weChatPayUtil.refund(
                     orders.getNumber(),
                     orders.getNumber(),
@@ -300,6 +300,59 @@ public class OrderServiceImpl implements OrderService {
         order.setStatus(orders.getStatus());
         order.setRejectionReason(ordersRejectionDTO.getRejectionReason());
         order.setCancelTime(LocalDateTime.now());
+
+        orderMapper.update(orders);
+    }
+
+    @Override
+    public void cancel(OrdersCancelDTO ordersCancelDTO) throws Exception {
+        Orders orders = orderMapper.getById(ordersCancelDTO.getId());
+        Integer payStatus = orders.getPayStatus();
+        if (payStatus == 1) {
+            String refund = weChatPayUtil.refund(
+                    orders.getNumber(),
+                    orders.getNumber(),
+                    new BigDecimal(0.01),
+                    new BigDecimal(0.01)
+            );
+            log.info("申請退款：{}", refund);
+        }
+
+        // 管理端取消訂單需退款，依訂單id更新訂單狀態、取消原因、取消時間
+        Orders orders1 = new Orders();
+        orders1.setId(ordersCancelDTO.getId());
+        orders1.setStatus(Orders.CANCELLED);
+        orders1.setCancelReason(ordersCancelDTO.getCancelReason());
+        orders1.setCancelTime(LocalDateTime.now());
+        orderMapper.update(orders1);
+    }
+
+    @Override
+    public void delivery(Long id) {
+        Orders orders = orderMapper.getById(id);
+
+        // 校驗訂單是否存在，且狀態為3
+        if (orders == null || !orders.getStatus().equals(Orders.CONFIRMED)) {
+            throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
+        }
+
+        Orders order = new Orders();
+        order.setId(orders.getId());
+        order.setStatus(Orders.DELIVERY_IN_PROGRESS);
+
+        orderMapper.update(orders);
+    }
+
+    @Override
+    public void complete(Long id) {
+        Orders orders = orderMapper.getById(id);
+        if (orders == null || !orders.getStatus().equals(Orders.DELIVERY_IN_PROGRESS)) {
+            throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
+        }
+        Orders order = new Orders();
+        order.setId(orders.getId());
+        order.setStatus(Orders.COMPLETED);
+        order.setDeliveryTime(LocalDateTime.now());
 
         orderMapper.update(orders);
     }
